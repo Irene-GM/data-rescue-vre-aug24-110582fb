@@ -1,0 +1,176 @@
+---
+title: "visualizing_historic_data"
+output: html_document
+date: "2024-06-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Loading libraries
+```{r}
+library("readxl") # to load the excel files
+library(ggplot2)  # to create the plots
+```
+
+# Loading the data
+```{r}
+df_E <- read_excel("data_for_notebooks/st_E.xlsx") # st. Eustatius archive
+df_M <- read_excel("data_for_notebooks/st_M.xlsx") # st. Maarten archive
+df_reAnalysis <- read_excel("data_for_notebooks/merged_1924.xlsx") # reanalysis data from st.Eustatuis & st. Maarten
+```
+
+# Preprocess the datasets
+## st. Eustatius
+```{r}
+df_E$type <- df_E$Type # Copy the type column to be able to filter on "average"
+df_E$Type[df_E$Type == "Average"] <- 0 # in the original type column convert average to 0
+df_E$Type <- as.numeric(df_E$Type) # convert the original type column to numeric
+df_E$Time <- rowSums(df_E[, c("Day", "Type")], na.rm = TRUE) # create a new (continuous) time column
+df_E$Location <- "st. Eustatius" # add a locaiton column
+```
+
+## st. Maarten
+```{r}
+# change the column names to match the st. Eustatius dataset
+colnames(df_M)[colnames(df_M) == 'Time'] <- 'Type'
+colnames(df_M)[colnames(df_M) == 'Temp'] <- 'Temperature'
+colnames(df_M)[colnames(df_M) == 'Neerslag'] <- 'Precipitation'
+df_M$Pressure <- df_M$Pressure + 700
+df_M$type <- df_M$Type
+df_M$Type[df_M$Type == "Average"] <- 0
+df_M$Type <- as.numeric(df_M$Type)
+df_M$Time <- rowSums(df_M[, c("Day", "Type")], na.rm = TRUE)
+df_M$Location <- "st. Maarten"
+```
+
+# Merge the preprocessed datasets
+```{r}
+df_merged <- rbind(df_E, df_M)
+```
+
+# Plots 
+## Averages
+```{r}
+ggplot(subset(df_merged, type == "Average"), aes(x=Time, y=Pressure, color=Location)) +
+  geom_line() +
+  labs(title = "Average air pressure 08-1924")
+
+ggplot(subset(df_merged, type == "Average"), aes(x=Time, y=Temperature, color=Location)) +
+  geom_line() +
+  labs(title = "Average temperature 08-1924")
+
+ggplot(subset(df_merged, type == "Average"), aes(x=Time, y=Precipitation, color=Location)) +
+  geom_line() +
+  labs(title = "Average precipitation 08-1924")
+```
+
+## Time series
+```{r}
+ggplot(subset(df_merged, type != "Average"), aes(x=Time, y=Pressure, color=Location)) +
+  geom_line()
+
+ggplot(subset(df_merged, type != "Average"), aes(x=Time, y=Temperature, color=Location)) +
+  geom_line()
+
+ggplot(subset(df_merged, type != "Average"), aes(x=Time, y=Precipitation, color=Location)) +
+  geom_line()
+```
+
+# Reanalysis data
+## st. Eustatius
+```{r}
+p1 <- ggplot() + 
+  geom_line(data=subset(df_merged, type != "Average" & Location == 'st. Eustatius'), aes(x=Time, y=Pressure, color='Archive')) + 
+  geom_line(data=subset(df_reAnalysis, Location == 'st. Eustatius'), aes(x=Time, y=Pressure, color='Reanalysis')) +
+  labs(title = "Pressure (mM.) in 08-1924, st. Eustatius",
+       x = "Time (days)",
+       y = "Pressure (mM.)") +
+  scale_color_manual(name="Data type",values=c(Archive="red",Reanalysis="blue")) +
+  theme_bw()
+
+p2 <- ggplot() + 
+  geom_line(data=subset(df_merged, type != "Average" & Location == 'st. Eustatius'), aes(x=Time, y=Temperature, color='Archive')) + 
+  geom_line(data=subset(df_reAnalysis, Location == 'st. Eustatius'), aes(x=Time, y=Temperature, color='Reanalysis')) +
+  labs(title = "Temperature (\u00B0C) in 08-1924, st. Eustatius",
+       x = "Time (days)",
+       y = "Temperature (\u00B0C)") +
+  scale_color_manual(name="Data type",values=c(Archive="red",Reanalysis="blue")) +
+  theme_bw()
+
+p3 <- ggplot() + 
+  geom_line(data=subset(df_merged, type == "Average" & Location == 'st. Eustatius'), aes(x=Time, y=Temperature, color='Archive')) + 
+  geom_line(data=subset(df_reAnalysis, Location == 'st. Eustatius'), aes(x=Time, y=Temperature, color='Reanalysis')) +
+  labs(title = "Temperature (\u00B0C) in 08-1924, st. Eustatius",
+       subtitle = "Daily average of archive data vs. 3-hourly reanalysis data",
+       x = "Time (days)",
+       y = "Temperature (\u00B0C)") +
+  scale_color_manual(name="Data type",values=c(Archive="red",Reanalysis="blue")) +
+  theme_bw()
+
+p4 <- ggplot() + 
+  geom_line(data=subset(df_merged, type != "Average" & Location == 'st. Eustatius'), aes(x=Time, y=Precipitation, color='Archive')) + 
+  geom_line(data=subset(df_reAnalysis, Location == 'st. Eustatius'), aes(x=Time, y=Precipitation, color='Reanalysis'))+
+  labs(title = "Precipitation (mm) in 08-1924, st. Eustatius",
+       x = "Time (days)",
+       y = "Precipitation (mm)") +
+  scale_color_manual(name="Data type",values=c(Archive="red",Reanalysis="blue")) +
+  theme_bw()
+```
+
+
+## st. Maarten
+```{r}
+p5 <- ggplot() + 
+  geom_line(data=subset(df_merged, type != "Average" & Location == 'st. Maarten'), aes(x=Time, y=Pressure, color='Archive')) + 
+  geom_line(data=subset(df_reAnalysis, Location == 'st. Maarten'), aes(x=Time, y=Pressure, color='Reanalysis')) +
+  labs(title = "Pressure (mM.) in 08-1924, st. Maarten",
+       x = "Time (days)",
+       y = "Pressure (mM.)") +
+  scale_color_manual(name="Data type",values=c(Archive="red",Reanalysis="blue")) +
+  theme_bw()
+
+p6 <- ggplot() + 
+  geom_line(data=subset(df_merged, type != "Average" & Location == 'st. Maarten'), aes(x=Time, y=Temperature, color='Archive')) + 
+  geom_line(data=subset(df_reAnalysis, Location == 'st. Maarten'), aes(x=Time, y=Temperature, color='Reanalysis')) +
+  labs(title = "Temperature (\u00B0C) in 08-1924, st. Maarten",
+       x = "Time (days)",
+       y = "Temperature (\u00B0C)") +
+  scale_color_manual(name="Data type",values=c(Archive="red",Reanalysis="blue")) +
+  theme_bw()
+
+p7 <- ggplot() + 
+  geom_line(data=subset(df_merged, type == "Average" & Location == 'st. Maarten'), aes(x=Time, y=Temperature, color='Archive')) + 
+  geom_line(data=subset(df_reAnalysis, Location == 'st. Maarten'), aes(x=Time, y=Temperature, color='Reanalysis')) +
+  labs(title = "Temperature (\u00B0C) in 08-1924, st. Maarten",
+       subtitle = "Daily average of archive data vs. 3-hourly reanalysis data",
+       x = "Time (days)",
+       y = "Temperature (\u00B0C)") +
+  scale_color_manual(name="Data type",values=c(Archive="red",Reanalysis="blue")) +
+  theme_bw()
+
+p8 <- ggplot() + 
+  geom_line(data=subset(df_merged, type != "Average" & Location == 'st. Maarten'), aes(x=Time, y=Precipitation, color='Archive')) + 
+  geom_line(data=subset(df_reAnalysis, Location == 'st. Maarten'), aes(x=Time, y=Precipitation, color='Reanalysis'))+
+  labs(title = "Precipitation (mm) in 08-1924, st. Maarten",
+       x = "Time (days)",
+       y = "Precipitation (mm)") +
+  scale_color_manual(name="Data type",values=c(Archive="red",Reanalysis="blue")) +
+  theme_bw()
+```
+
+
+
+
+```{r}
+ggsave(filename="pressure_1924_E.png", plot=p1)
+ggsave(filename="temp_1924_E.png", plot=p2)
+ggsave(filename="temp_avg_1924_E.png", plot=p3)
+ggsave(filename="precip_1924_E.png", plot=p4)
+ggsave(filename="pressure_1924_M.png", plot=p5)
+ggsave(filename="temp_1924_M.png", plot=p6)
+ggsave(filename="temp_avg_1924_M.png", plot=p7)
+ggsave(filename="precip_1924_M.png", plot=p8)
+```
+
